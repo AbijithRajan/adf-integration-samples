@@ -11,7 +11,7 @@ CREATE TABLE dbo.SisDictionary
 
 
 GO
-IF EXISTS (SELECT 1 FROM sys.tables WHERE object_id = OBJECT_ID('dbo.GetColumnMappingForTable'))
+IF EXISTS (SELECT 1 FROM sys.procedures WHERE object_id = OBJECT_ID('dbo.GetColumnMappingForTable'))
 	DROP PROCEDURE dbo.GetColumnMappingForTable
 go
 
@@ -55,3 +55,103 @@ BEGIN
 	DROP TABLE #tbl
 	
 END
+
+GO
+
+IF EXISTS (SELECT 1 FROM sys.procedures WHERE object_id = object_id('dbo.usp_Anthology_CreateAnalyticViews'))
+	DROP PROCEDURE dbo.usp_Anthology_CreateAnalyticViews
+GO
+
+CREATE PROCEDURE dbo.usp_Anthology_CreateAnalyticViews
+(
+	  @BuildAllSP BIT = 1
+	, @ObjectName NVARCHAR(255) = 'SyStudent'
+	, @IsDebug BIT = 0
+)
+AS 
+BEGIN
+	SET NOCOUNT ON;
+
+	DECLARE @min INT = 1
+		, @max INT = 0
+		, @SchemaName NVARCHAR(255) = ''
+		, @TableName NVARCHAR(255) = ''
+		, @ColumnName NVARCHAR(255) = ''
+		, @cmd NVARCHAR(MAX) = ''
+		, @ColumnNames NVARCHAR(MAX) = ''
+		, @ViewName NVARCHAR(255) = 'View_Anthology_' 
+		, @CustomerSchema NVARCHAR(255) = 'Customer'
+	
+	CREATE TABLE #tblSyDictionary (Id INT IDENTITY(1,1), SchemaName NVARCHAR(255), TableName NVARCHAR(255), ColumnName NVARCHAR(255))
+	CREATE TABLE #tblTables (Id INT IDENTITY(1,1), SchemaName NVARCHAR(255), TableName NVARCHAR(255))
+
+	IF @BuildAllSP = 1
+		INSERT INTO #tblSyDictionary (SchemaName, TableName, ColumnName)
+		SELECT 'dbo' as SchemaName, D.TableName, D.ColumnName
+		FROM dbo.sisDictionary D WITH (NOLOCK)
+		
+	ELSE 
+		INSERT INTO #tblSyDictionary (SchemaName, TableName, ColumnName)
+		SELECT 'dbo' as SchemaName, D.TableName, D.ColumnName
+		FROM dbo.sisDictionary D WITH (NOLOCK)
+		WHERE D.TableName = @ObjectName
+
+
+	INSERT INTO #tblTables (SchemaName, TableName)
+	SELECT DISTINCT SchemaName, TableName
+	FROM #tblSyDictionary
+
+	SELECT @max = COUNT(1) FROM #tblTables
+
+	WHILE @min <= @max
+	BEGIN
+		SELECT @TableName = TableName, @SchemaName = SchemaName FROM #tblTables WHERE Id = @min
+		SELECT @ColumnNames = '', @cmd = ''
+
+		SELECT @cmd = N'IF EXISTS (SELECT 1 FROM sys.views WHERE object_id = OBJECT_ID(''' + @CustomerSchema + '.'+@ViewName+ @TableName + '''))
+	DROP VIEW '+@CustomerSchema+'.' + @ViewName+ @TableName 
+
+
+		IF @IsDebug = 1
+			PRINT  @Cmd
+		ELSE
+		BEGIN
+			EXEC sp_executesql @cmd
+			PRINT 'Dropping View ' + @CustomerSchema+'.' + @ViewName+ @TableName 
+		END
+
+		SELECT @cmd = ''
+		SELECT @cmd = N'CREATE VIEW '+ @CustomerSchema+'.' + @ViewName+ @TableName +'
+	 AS
+	 SELECT '  
+
+		SELECT @ColumnNames = STUFF((
+					SELECT ', ' + CASE WHEN r.TableName = 'FaStudentPell' and r.ColumnName = 'PellAmount' THEN 'CONVERT(NUMERIC(19, 4), ' + r.ColumnName + ') as ' + UPPER(r.ColumnName) ELSE '[' + UPPER(r.ColumnName) + ']'  END
+					FROM #tblSyDictionary r
+					WHERE r.TableName = c.TableName
+						and r.SchemaName = c.SchemaName
+					FOR XML PATH('')
+						,TYPE
+					).value('.', 'VARCHAR(max)'), 1, 1, '') 
+		FROM #tblTables c
+		WHERE Id = @min
+
+		SELECT @cmd = @cmd + @ColumnNames + ' FROM [' + @SchemaName + '].[' + @TableName + '] WITH (NOLOCK)
+		GO' 
+
+		IF @IsDebug = 1
+			PRINT  @Cmd
+		ELSE
+		BEGIN
+			EXEC sp_executesql @cmd
+			PRINT 'Creating View ' + @SchemaName+'.' + @ViewName+ @TableName 
+		END
+
+		SET @min = @min + 1
+	END
+	  
+
+	SET NOCOUNT OFF;
+END
+
+GO
