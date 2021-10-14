@@ -18,7 +18,7 @@ This document covers ADF samples to create a pipeline to copy data from Antholog
 - Identify the tables, Columns and datatypes from Anthology Student database which needs to be copied using the ADF pipeline
 - update the details of the tables in "Populate_SisDictionary.sql" and "Create_Tables_On_Datawarehouse.sql"
 - The script has example of table how it needs to created. Please update them as per your requirement.
-- After necessary chagnes, please execute the scripts "Populate_SisDictionary.sql" and "Create_Tables_On_Datawarehouse.sql" against the database created on step 1
+- After necessary changes, please execute the scripts "Populate_SisDictionary.sql" and "Create_Tables_On_Datawarehouse.sql" against the database created on step 1
 
 ## Step 3
 - After completing the step 2, open script "Generate_Views_ForAnthologyStudent.sql"
