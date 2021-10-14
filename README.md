@@ -1,6 +1,6 @@
 # adf-integration-samples
 
-This document convers ADF samples to create a pipeline to copy data from Anthology Student database to Any database on customer domain.
+This document covers ADF samples to create a pipeline to copy data from Anthology Student database to Any database on customer domain.
 
 ## Pre-requisite
 - Contact Anthology Cloud team to create Self hosted integration runtime.
